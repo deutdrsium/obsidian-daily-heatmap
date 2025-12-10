@@ -57,8 +57,10 @@ export class HeatmapView extends ItemView {
         header.createEl('h4', { text: `📊 ${year} 写作热力图` });
 
         // ===== 今日统计 =====
+        const safeDailyGoal = Math.max(1, settings.dailyGoal || 0);
         const todayCount = this.plugin.wordCounter.getTodayCount();
-        const goalPercent = Math.min(100, Math.round((todayCount / settings.dailyGoal) * 100));
+        const goalPercent = Math.min(100, Math.round((todayCount / safeDailyGoal) * 100));
+        const remainingWords = Math.max(0, safeDailyGoal - todayCount);
         
         const statsEl = container.createEl('div', { cls: 'heatmap-stats' });
         
@@ -68,7 +70,7 @@ export class HeatmapView extends ItemView {
             cls: 'today-count'
         });
         todayEl.createEl('span', { 
-            text: ` / ${settings.dailyGoal} 字目标`,
+            text: ` / ${safeDailyGoal} 字目标`,
             cls: 'today-goal'
         });
 
@@ -76,9 +78,10 @@ export class HeatmapView extends ItemView {
         if (settings.showProgressBar) {
             const progressContainer = container.createEl('div', { cls: 'progress-container' });
             
-            const progressBar = progressContainer.createEl('div', { cls: 'progress-bar' });
+            const progressBar = progressContainer.createEl('div', { cls: 'dh-progress-bar' });
             const progressFill = progressBar.createEl('div', { cls: 'progress-fill' });
             progressFill.style.width = `${goalPercent}%`;
+            progressFill.style.height = '100%';
             
             if (goalPercent >= 100) {
                 progressFill.addClass('complete');
@@ -90,7 +93,7 @@ export class HeatmapView extends ItemView {
             if (goalPercent >= 100) {
                 progressText.setText(`🎉 已完成 ${goalPercent}%！`);
             } else {
-                progressText.setText(`${goalPercent}% - 还差 ${settings.dailyGoal - todayCount} 字`);
+                progressText.setText(`${goalPercent}% - 还差 ${remainingWords} 字`);
             }
         }
 
@@ -315,9 +318,9 @@ export class HeatmapView extends ItemView {
         container.style.setProperty('--heatmap-color-level-2', settings.colorLevel2);
         container.style.setProperty('--heatmap-color-level-3', settings.colorLevel3);
         container.style.setProperty('--heatmap-color-level-4', settings.colorLevel4);
-        container.style.setProperty('--heatmap-progress-fill', settings.colorLevel2);
-        container.style.setProperty('--heatmap-progress-half', settings.colorLevel3);
-        container.style.setProperty('--heatmap-progress-complete', settings.colorLevel4);
+        container.style.setProperty('--heatmap-progress-fill', settings.progressColorFill || settings.colorLevel2);
+        container.style.setProperty('--heatmap-progress-half', settings.progressColorHalf || settings.colorLevel3);
+        container.style.setProperty('--heatmap-progress-complete', settings.progressColorComplete || settings.colorLevel4);
     }
 
     async onClose() {}

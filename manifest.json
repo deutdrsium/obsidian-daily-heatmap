@@ -1,9 +1,9 @@
 {
   "id": "daily-heatmap",
   "name": "Daily Heatmap",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "minAppVersion": "1.0.0",
   "description": "Automatically tallies the daily count of new words written. Supports mixed language counting (Chinese and English).",
-  "author": "你的名字",
+  "author": "deutdrsium",
   "isDesktopOnly": false
 }

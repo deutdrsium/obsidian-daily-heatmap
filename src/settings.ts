@@ -20,6 +20,9 @@ export interface WritingHeatmapSettings {
     // 每日目标
     dailyGoal: number;        // 每日写作目标
     showProgressBar: boolean; // 是否显示进度条
+    progressColorFill: string;      // 进度条基础颜色
+    progressColorHalf: string;      // 超过50%时颜色
+    progressColorComplete: string;  // 完成目标时颜色
     
     // 显示设置
     cellSize: number;         // 格子大小 (px)
@@ -41,6 +44,9 @@ export const DEFAULT_SETTINGS: WritingHeatmapSettings = {
     
     dailyGoal: 1000,
     showProgressBar: true,
+    progressColorFill: '#40c463',
+    progressColorHalf: '#30a14e',
+    progressColorComplete: '#216e39',
     
     cellSize: 12,
     cellGap: 2
@@ -146,6 +152,9 @@ export class WritingHeatmapSettingTab extends PluginSettingTab {
         this.plugin.settings.colorLevel2 = preset.colorLevel2;
         this.plugin.settings.colorLevel3 = preset.colorLevel3;
         this.plugin.settings.colorLevel4 = preset.colorLevel4;
+        this.plugin.settings.progressColorFill = preset.colorLevel2;
+        this.plugin.settings.progressColorHalf = preset.colorLevel3;
+        this.plugin.settings.progressColorComplete = preset.colorLevel4;
         
         await this.plugin.saveSettings();
         this.display();
@@ -186,6 +195,36 @@ export class WritingHeatmapSettingTab extends PluginSettingTab {
                 .setValue(this.plugin.settings.showProgressBar)
                 .onChange(async (value) => {
                     this.plugin.settings.showProgressBar = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('进度条颜色（开始）')
+            .setDesc('低于 50% 进度时的颜色')
+            .addColorPicker(color => color
+                .setValue(this.plugin.settings.progressColorFill)
+                .onChange(async (value) => {
+                    this.plugin.settings.progressColorFill = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('进度条颜色（过半）')
+            .setDesc('达到 50% 进度后的颜色')
+            .addColorPicker(color => color
+                .setValue(this.plugin.settings.progressColorHalf)
+                .onChange(async (value) => {
+                    this.plugin.settings.progressColorHalf = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('进度条颜色（完成）')
+            .setDesc('完成目标后的颜色')
+            .addColorPicker(color => color
+                .setValue(this.plugin.settings.progressColorComplete)
+                .onChange(async (value) => {
+                    this.plugin.settings.progressColorComplete = value;
                     await this.plugin.saveSettings();
                 }));
 

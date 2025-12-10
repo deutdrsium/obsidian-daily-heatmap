@@ -40,10 +40,10 @@
 	margin-bottom: 15px;
 }
 
-.progress-bar {
+.dh-progress-bar {
 	width: 100%;
 	height: 8px;
-	background-color: var(--background-secondary);
+	background-color: var(--background-modifier-border);
 	border-radius: 4px;
 	overflow: hidden;
 	margin-bottom: 5px;
