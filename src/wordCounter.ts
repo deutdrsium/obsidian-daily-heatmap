@@ -1,6 +1,8 @@
 // src/wordCounter.ts
 import { TFile } from 'obsidian';
 
+const DATA_FILE_PATH = '.daily-heatmap.json';
+
 export interface DailyWordCount {
     [date: string]: number;
 }
@@ -24,14 +26,17 @@ export class WordCounter {
     }
 
     async loadData() {
-        const savedData = await this.plugin.loadData();
-        if (savedData) {
-            this.data = {
-                dailyCounts: savedData.dailyCounts || {},
-                fileWordCounts: savedData.fileWordCounts || {}
-            };
+        const fileData = await this.readExternalData();
+        if (fileData) {
+            this.data = fileData;
+        } else {
+            const legacyData = await this.plugin.loadData();
+            if (legacyData && (legacyData.dailyCounts || legacyData.fileWordCounts)) {
+                this.data = this.normalizeData(legacyData);
+                await this.saveData();
+            }
         }
-        
+
         await this.initializeFileCounts();
         this.initialized = true;
     }
@@ -60,11 +65,7 @@ export class WordCounter {
     }
 
     async saveData() {
-        const dataToSave = {
-            ...this.plugin.settings,
-            ...this.data
-        };
-        await this.plugin.saveData(dataToSave);
+        await this.writeExternalData(this.data);
     }
 
     getTodayString(): string {
@@ -168,5 +169,38 @@ export class WordCounter {
         if (count < settings.level2Threshold) return 2;
         if (count < settings.level3Threshold) return 3;
         return 4;
+    }
+
+    private normalizeData(source: Partial<WordCountData> | null | undefined): WordCountData {
+        return {
+            dailyCounts: source?.dailyCounts || {},
+            fileWordCounts: source?.fileWordCounts || {}
+        };
+    }
+
+    private async readExternalData(): Promise<WordCountData | null> {
+        try {
+            const adapter = this.plugin.app.vault.adapter;
+            if (!(await adapter.exists(DATA_FILE_PATH))) {
+                return null;
+            }
+            const raw = await adapter.read(DATA_FILE_PATH);
+            const parsed = raw ? JSON.parse(raw) : {};
+            return this.normalizeData(parsed);
+        } catch (error) {
+            console.error('Heatmap: 无法读取 .daily-heatmap.json', error);
+            return null;
+        }
+    }
+
+    private async writeExternalData(data: WordCountData) {
+        try {
+            await this.plugin.app.vault.adapter.write(
+                DATA_FILE_PATH,
+                JSON.stringify(data, null, 2)
+            );
+        } catch (error) {
+            console.error('Heatmap: 无法写入 .daily-heatmap.json', error);
+        }
     }
 }
