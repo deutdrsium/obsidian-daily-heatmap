@@ -1,7 +1,8 @@
 // src/wordCounter.ts
 import { TFile } from 'obsidian';
 
-const DATA_FILE_PATH = '.daily-heatmap.json';
+const DATA_FILE_PATH = 'daliy-heatmap.json';
+const LEGACY_DATA_FILE_PATH = '.daily-heatmap.json';
 
 export interface DailyWordCount {
     [date: string]: number;
@@ -181,14 +182,28 @@ export class WordCounter {
     private async readExternalData(): Promise<WordCountData | null> {
         try {
             const adapter = this.plugin.app.vault.adapter;
-            if (!(await adapter.exists(DATA_FILE_PATH))) {
+            let targetPath: string | null = null;
+
+            if (await adapter.exists(DATA_FILE_PATH)) {
+                targetPath = DATA_FILE_PATH;
+            } else if (await adapter.exists(LEGACY_DATA_FILE_PATH)) {
+                targetPath = LEGACY_DATA_FILE_PATH;
+            } else {
                 return null;
             }
-            const raw = await adapter.read(DATA_FILE_PATH);
+
+            const raw = await adapter.read(targetPath);
             const parsed = raw ? JSON.parse(raw) : {};
-            return this.normalizeData(parsed);
+            const normalized = this.normalizeData(parsed);
+
+            if (targetPath === LEGACY_DATA_FILE_PATH) {
+                await this.writeExternalData(normalized);
+                await adapter.remove(LEGACY_DATA_FILE_PATH);
+            }
+
+            return normalized;
         } catch (error) {
-            console.error('Heatmap: 无法读取 .daily-heatmap.json', error);
+            console.error('Heatmap: 无法读取 daliy-heatmap.json', error);
             return null;
         }
     }
@@ -200,7 +215,7 @@ export class WordCounter {
                 JSON.stringify(data, null, 2)
             );
         } catch (error) {
-            console.error('Heatmap: 无法写入 .daily-heatmap.json', error);
+            console.error('Heatmap: 无法写入 daliy-heatmap.json', error);
         }
     }
 }
