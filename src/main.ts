@@ -9,7 +9,7 @@ export default class WritingHeatmapPlugin extends Plugin {
     settings: WritingHeatmapSettings;
 
     async onload() {
-        console.log('加载 Writing Heatmap 插件');
+        console.debug('加载 Writing Heatmap 插件');
 
         // 加载设置
         await this.loadSettings();
@@ -31,26 +31,28 @@ export default class WritingHeatmapPlugin extends Plugin {
         this.addCommand({
             id: 'open-writing-heatmap',
             name: '打开写作热力图',
-            callback: () => this.activateView()
+            callback: () => {
+                void this.activateView();
+            }
         });
 
         // 添加侧边栏图标
         this.addRibbonIcon('calendar-glyph', '写作热力图', () => {
-            this.activateView();
+            void this.activateView();
         });
 
         // 监听文件修改事件
         this.registerEvent(
             this.app.vault.on('modify', (file) => {
                 if (file instanceof TFile) {
-                    this.wordCounter.updateWordCount(file);
+                    void this.wordCounter.updateWordCount(file);
                 }
             })
         );
 
         // 启动时激活视图
         this.app.workspace.onLayoutReady(() => {
-            this.activateView();
+            void this.activateView();
         });
     }
 
@@ -98,6 +100,6 @@ export default class WritingHeatmapPlugin extends Plugin {
     }
 
     onunload() {
-        console.log('卸载 Writing Heatmap 插件');
+        console.debug('卸载 Writing Heatmap 插件');
     }
 }

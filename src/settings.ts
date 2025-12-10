@@ -156,10 +156,14 @@ export class WritingHeatmapSettingTab extends PluginSettingTab {
         containerEl.empty();
 
         // 标题
-        containerEl.createEl('h2', { text: '写作热力图设置' });
+        new Setting(containerEl)
+            .setName('写作热力图设置')
+            .setHeading();
 
         // ===== 每日目标设置 =====
-        containerEl.createEl('h3', { text: '📎 每日目标' });
+        new Setting(containerEl)
+            .setName('📎 每日目标')
+            .setHeading();
 
         new Setting(containerEl)
             .setName('每日写作目标')
@@ -186,7 +190,9 @@ export class WritingHeatmapSettingTab extends PluginSettingTab {
                 }));
 
         // ===== 阈值设置 =====
-        containerEl.createEl('h3', { text: '📊 字数阈值' });
+        new Setting(containerEl)
+            .setName('📊 字数阈值')
+            .setHeading();
 
         new Setting(containerEl)
             .setName('等级1阈值')
@@ -245,7 +251,9 @@ export class WritingHeatmapSettingTab extends PluginSettingTab {
                 }));
 
         // ===== 颜色设置 =====
-        containerEl.createEl('h3', { text: '🎨 颜色设置' });
+        new Setting(containerEl)
+            .setName('🎨 颜色设置')
+            .setHeading();
 
         new Setting(containerEl)
             .setName('无写作颜色')
@@ -322,7 +330,9 @@ export class WritingHeatmapSettingTab extends PluginSettingTab {
                 }));
 
         // ===== 显示设置 =====
-        containerEl.createEl('h3', { text: '📐 显示设置' });
+        new Setting(containerEl)
+            .setName('📐 显示设置')
+            .setHeading();
 
         new Setting(containerEl)
             .setName('格子大小')
@@ -349,7 +359,9 @@ export class WritingHeatmapSettingTab extends PluginSettingTab {
                 }));
 
         // ===== 数据管理 =====
-        containerEl.createEl('h3', { text: '🗃️ 数据管理' });
+        new Setting(containerEl)
+            .setName('🗃️ 数据管理')
+            .setHeading();
 
         new Setting(containerEl)
             .setName('重置今日统计')
@@ -367,7 +379,7 @@ export class WritingHeatmapSettingTab extends PluginSettingTab {
             .setDesc('导出所有写作统计数据为 JSON 文件')
             .addButton(button => button
                 .setButtonText('导出')
-                .onClick(async () => {
+                .onClick(() => {
                     const data = this.plugin.wordCounter.exportData();
                     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
                     const url = URL.createObjectURL(blob);

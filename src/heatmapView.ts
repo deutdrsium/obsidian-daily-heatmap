@@ -1,8 +1,15 @@
 // src/heatmapView.ts
-import { ItemView, WorkspaceLeaf } from 'obsidian';
+import { ItemView, WorkspaceLeaf, Events } from 'obsidian';
 import WritingHeatmapPlugin from './main';
+import 'obsidian';
 
 export const VIEW_TYPE_HEATMAP = 'writing-heatmap-view';
+
+declare module 'obsidian' {
+    interface WorkspaceEventMap {
+        'heatmap-update': void;
+    }
+}
 
 export class HeatmapView extends ItemView {
     plugin: WritingHeatmapPlugin;
@@ -25,16 +32,16 @@ export class HeatmapView extends ItemView {
     }
 
     async onOpen() {
-        await this.render();
+        this.render();
 
         this.registerEvent(
-            this.app.workspace.on('heatmap-update' as any, () => {
+            (this.app.workspace as Events).on('heatmap-update', () => {
                 this.render();
             })
         );
     }
 
-    async render() {
+    render() {
         const container = this.containerEl.children[1] as HTMLElement;
         container.empty();
         container.addClass('heatmap-container');
@@ -42,8 +49,7 @@ export class HeatmapView extends ItemView {
         const settings = this.plugin.settings;
         const year = new Date().getFullYear();
 
-        // 添加动态样式
-        this.addStyles();
+        this.applyDynamicStyles(container);
 
         // ===== 标题区域 =====
         const header = container.createEl('div', { cls: 'heatmap-header' });
@@ -95,8 +101,7 @@ export class HeatmapView extends ItemView {
         weekLabels.createEl('span', { cls: 'month-label-spacer' }); // 留出月份标签的空间
         const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
         dayNames.forEach(day => {
-            const label = weekLabels.createEl('span', { text: day, cls: 'week-label' });
-            label.style.width = `${settings.cellSize}px`;
+            weekLabels.createEl('span', { text: day, cls: 'week-label' });
         });
 
         // 获取年度数据
@@ -152,29 +157,18 @@ export class HeatmapView extends ItemView {
             const weekEl = weekRowEl.createEl('div', { cls: 'heatmap-week' });
             week.forEach((dayInfo, dayIndex) => {
                 if (dayInfo === null) {
-                    // 空格子
-                    const emptyEl = weekEl.createEl('div', { cls: 'heatmap-day empty' });
-                    emptyEl.style.width = `${settings.cellSize}px`;
-                    emptyEl.style.height = `${settings.cellSize}px`;
+                    weekEl.createEl('div', { cls: 'heatmap-day empty' });
                 } else {
                     const count = data[dayInfo.dateStr] || 0;
                     const level = this.plugin.wordCounter.getLevel(count);
                     const dayEl = weekEl.createEl('div', { cls: 'heatmap-day' });
                     
-                    dayEl.style.width = `${settings.cellSize}px`;
-                    dayEl.style.height = `${settings.cellSize}px`;
-                    
-                    // 判断日期状态
                     if (dayInfo.dateStr > todayStr) {
-                        // 未来日期
                         dayEl.addClass('future');
                     } else {
-                        // 过去或今天
-                        dayEl.style.backgroundColor = this.getLevelColor(level);
                         dayEl.addClass(`level-${level}`);
                     }
                     
-                    // 今天高亮
                     if (dayInfo.dateStr === todayStr) {
                         dayEl.addClass('today');
                     }
@@ -188,10 +182,7 @@ export class HeatmapView extends ItemView {
         const legendEl = container.createEl('div', { cls: 'heatmap-legend' });
         legendEl.createEl('span', { text: '少' });
         for (let i = 0; i <= 4; i++) {
-            const item = legendEl.createEl('div', { cls: 'legend-item' });
-            item.style.backgroundColor = this.getLevelColor(i);
-            item.style.width = `${settings.cellSize}px`;
-            item.style.height = `${settings.cellSize}px`;
+            legendEl.createEl('div', { cls: `legend-item level-${i}` });
         }
         legendEl.createEl('span', { text: '多' });
 
@@ -315,206 +306,18 @@ export class HeatmapView extends ItemView {
         return { totalWords, activeDays, currentStreak, longestStreak };
     }
 
-    getLevelColor(level: number): string {
+    private applyDynamicStyles(container: HTMLElement) {
         const settings = this.plugin.settings;
-        switch (level) {
-            case 0: return settings.colorEmpty;
-            case 1: return settings.colorLevel1;
-            case 2: return settings.colorLevel2;
-            case 3: return settings.colorLevel3;
-            case 4: return settings.colorLevel4;
-            default: return settings.colorEmpty;
-        }
-    }
-
-    addStyles() {
-        const styleId = 'heatmap-styles';
-        let styleEl = document.getElementById(styleId);
-        
-        if (styleEl) {
-            styleEl.remove();
-        }
-
-        const settings = this.plugin.settings;
-        
-        styleEl = document.createElement('style');
-        styleEl.id = styleId;
-        styleEl.textContent = `
-            .heatmap-container {
-                padding: 12px;
-                font-family: var(--font-interface);
-            }
-
-            .heatmap-header h4 {
-                margin: 0 0 10px 0;
-                font-size: 14px;
-            }
-
-            .heatmap-stats {
-                margin-bottom: 12px;
-            }
-
-            .today-stats {
-                font-size: 13px;
-            }
-
-            .today-count {
-                font-weight: 600;
-                color: var(--text-normal);
-            }
-
-            .today-goal {
-                color: var(--text-muted);
-            }
-
-            /* 进度条 */
-            .progress-container {
-                margin-bottom: 15px;
-            }
-
-            .progress-bar {
-                width: 100%;
-                height: 8px;
-                background-color: var(--background-secondary);
-                border-radius: 4px;
-                overflow: hidden;
-                margin-bottom: 5px;
-            }
-
-            .progress-fill {
-                height: 100%;
-                background-color: ${settings.colorLevel2};
-                border-radius: 4px;
-                transition: width 0.3s ease;
-            }
-
-            .progress-fill.half {
-                background-color: ${settings.colorLevel3};
-            }
-
-            .progress-fill.complete {
-                background-color: ${settings.colorLevel4};
-            }
-
-            .progress-text {
-                font-size: 11px;
-                color: var(--text-muted);
-            }
-
-            /* 热力图纵向布局 */
-            .heatmap-vertical {
-                display: flex;
-                flex-direction: column;
-                gap: ${settings.cellGap}px;
-            }
-
-            .week-labels {
-                display: flex;
-                gap: ${settings.cellGap}px;
-                margin-bottom: 4px;
-            }
-
-            .month-label-spacer {
-                width: 30px;
-                min-width: 30px;
-            }
-
-            .week-label {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 9px;
-                color: var(--text-muted);
-                height: ${settings.cellSize}px;
-            }
-
-            .heatmap-grid {
-                display: flex;
-                flex-direction: column;
-                gap: ${settings.cellGap}px;
-            }
-
-            .heatmap-week-row {
-                display: flex;
-                gap: ${settings.cellGap}px;
-                align-items: center;
-            }
-
-            .month-side-label {
-                width: 30px;
-                min-width: 30px;
-                font-size: 10px;
-                font-weight: 500;
-                color: var(--text-muted);
-                text-align: left;
-            }
-
-            .heatmap-week {
-                display: flex;
-                gap: ${settings.cellGap}px;
-            }
-
-            .heatmap-day {
-                border-radius: 2px;
-                cursor: pointer;
-                transition: transform 0.1s, box-shadow 0.1s;
-            }
-
-            .heatmap-day:hover {
-                transform: scale(1.2);
-                box-shadow: 0 0 4px rgba(0,0,0,0.3);
-                z-index: 10;
-            }
-
-            .heatmap-day.empty {
-                background-color: transparent !important;
-                cursor: default;
-            }
-
-            .heatmap-day.today {
-                outline: 2px solid var(--text-accent);
-                outline-offset: 1px;
-            }
-
-            .heatmap-day.future {
-                background-color: transparent !important;
-                border: 1px dashed var(--text-faint);
-                opacity: 0.3;
-            }
-
-            /* 图例 */
-            .heatmap-legend {
-                display: flex;
-                align-items: center;
-                gap: 4px;
-                margin-top: 15px;
-                font-size: 10px;
-                color: var(--text-muted);
-            }
-
-            .legend-item {
-                border-radius: 2px;
-            }
-
-            /* 年度统计 */
-            .year-stats {
-                margin-top: 15px;
-                padding-top: 12px;
-                border-top: 1px solid var(--background-modifier-border);
-            }
-
-            .stats-item {
-                font-size: 12px;
-                color: var(--text-muted);
-                margin-bottom: 4px;
-            }
-
-            .stats-item.streak {
-                color: var(--text-accent);
-                font-weight: 500;
-            }
-        `;
-        document.head.appendChild(styleEl);
+        container.style.setProperty('--heatmap-cell-size', `${settings.cellSize}px`);
+        container.style.setProperty('--heatmap-cell-gap', `${settings.cellGap}px`);
+        container.style.setProperty('--heatmap-color-level-0', settings.colorEmpty);
+        container.style.setProperty('--heatmap-color-level-1', settings.colorLevel1);
+        container.style.setProperty('--heatmap-color-level-2', settings.colorLevel2);
+        container.style.setProperty('--heatmap-color-level-3', settings.colorLevel3);
+        container.style.setProperty('--heatmap-color-level-4', settings.colorLevel4);
+        container.style.setProperty('--heatmap-progress-fill', settings.colorLevel2);
+        container.style.setProperty('--heatmap-progress-half', settings.colorLevel3);
+        container.style.setProperty('--heatmap-progress-complete', settings.colorLevel4);
     }
 
     async onClose() {}

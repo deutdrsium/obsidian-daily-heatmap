@@ -1,5 +1,6 @@
 // src/wordCounter.ts
 import { TFile } from 'obsidian';
+import type WritingHeatmapPlugin from './main';
 
 const DATA_FILE_PATH = 'daliy-heatmap.json';
 const LEGACY_DATA_FILE_PATH = '.daily-heatmap.json';
@@ -13,12 +14,19 @@ export interface WordCountData {
     fileWordCounts: { [filePath: string]: number };
 }
 
+export interface WordCountExport {
+    exportDate: string;
+    dailyCounts: DailyWordCount;
+    totalDays: number;
+    totalWords: number;
+}
+
 export class WordCounter {
-    plugin: any;
+    private readonly plugin: WritingHeatmapPlugin;
     data: WordCountData;
     initialized: boolean = false;
 
-    constructor(plugin: any) {
+    constructor(plugin: WritingHeatmapPlugin) {
         this.plugin = plugin;
         this.data = {
             dailyCounts: {},
@@ -62,7 +70,7 @@ export class WordCounter {
         }
         
         await this.saveData();
-        console.log('Heatmap: 初始化完成，已记录', files.length, '个文件');
+        console.debug('Heatmap: 初始化完成，已记录', files.length, '个文件');
     }
 
     async saveData() {
@@ -79,7 +87,7 @@ export class WordCounter {
             .replace(/```[\s\S]*?```/g, '')
             .replace(/`[^`]*`/g, '')
             .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
-            .replace(/[#*_~`>\-]/g, '')
+            .replace(/[-#*_~`>]/g, '')
             .trim();
 
         const chineseChars = (cleanText.match(/[\u4e00-\u9fa5]/g) || []).length;
@@ -121,7 +129,7 @@ export class WordCounter {
         await this.saveData();
         this.notifyUpdate();
         
-        console.log(`Heatmap: ${file.basename} | 之前: ${lastCount ?? '新文件'} | 现在: ${currentCount} | 今日总计: ${this.data.dailyCounts[today] || 0}`);
+        console.debug(`Heatmap: ${file.basename} | 之前: ${lastCount ?? '新文件'} | 现在: ${currentCount} | 今日总计: ${this.data.dailyCounts[today] || 0}`);
     }
 
     notifyUpdate() {
@@ -153,7 +161,7 @@ export class WordCounter {
         this.notifyUpdate();
     }
 
-    exportData(): any {
+    exportData(): WordCountExport {
         return {
             exportDate: new Date().toISOString(),
             dailyCounts: this.data.dailyCounts,
