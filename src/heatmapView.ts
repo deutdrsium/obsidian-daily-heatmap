@@ -32,6 +32,7 @@ export class HeatmapView extends ItemView {
     }
 
     async onOpen() {
+        await this.waitForFrame();
         this.render();
 
         this.registerEvent(
@@ -216,7 +217,6 @@ export class HeatmapView extends ItemView {
         const weeks: (null | { dateStr: string; dayOfWeek: number })[][] = [];
         
         const firstDay = new Date(year, 0, 1);
-        const lastDay = new Date(year, 11, 31);
         
         let currentWeek: (null | { dateStr: string; dayOfWeek: number })[] = [];
         const firstDayOfWeek = firstDay.getDay();
@@ -325,5 +325,9 @@ export class HeatmapView extends ItemView {
     private toLocalDateStr(date: Date): string {
         const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
         return local.toISOString().split('T')[0];
+    }
+
+    private waitForFrame(): Promise<void> {
+        return new Promise(resolve => requestAnimationFrame(() => resolve()));
     }
 }

@@ -1,5 +1,5 @@
 // src/main.ts
-import { Plugin, WorkspaceLeaf, TFile } from 'obsidian';
+import { Plugin, TFile } from 'obsidian';
 import { HeatmapView, VIEW_TYPE_HEATMAP } from './heatmapView';
 import { WordCounter } from './wordCounter';
 import { WritingHeatmapSettings, DEFAULT_SETTINGS, WritingHeatmapSettingTab } from './settings';
@@ -95,7 +95,7 @@ export default class WritingHeatmapPlugin extends Plugin {
         }
 
         if (leaf) {
-            workspace.revealLeaf(leaf);
+            await workspace.revealLeaf(leaf);
         }
     }
 
