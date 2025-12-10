@@ -11,6 +11,12 @@ declare module 'obsidian' {
     }
 }
 
+const setCssProps = (element: HTMLElement, props: Record<string, string>) => {
+    Object.entries(props).forEach(([property, value]) => {
+        element.style.setProperty(property, value);
+    });
+};
+
 export class HeatmapView extends ItemView {
     plugin: WritingHeatmapPlugin;
 
@@ -80,8 +86,7 @@ export class HeatmapView extends ItemView {
             
             const progressBar = progressContainer.createEl('div', { cls: 'dh-progress-bar' });
             const progressFill = progressBar.createEl('div', { cls: 'progress-fill' });
-            progressFill.style.width = `${goalPercent}%`;
-            progressFill.style.height = '100%';
+            setCssProps(progressFill, { width: `${goalPercent}%` });
             
             if (goalPercent >= 100) {
                 progressFill.addClass('complete');
@@ -311,16 +316,18 @@ export class HeatmapView extends ItemView {
 
     private applyDynamicStyles(container: HTMLElement) {
         const settings = this.plugin.settings;
-        container.style.setProperty('--heatmap-cell-size', `${settings.cellSize}px`);
-        container.style.setProperty('--heatmap-cell-gap', `${settings.cellGap}px`);
-        container.style.setProperty('--heatmap-color-level-0', settings.colorEmpty);
-        container.style.setProperty('--heatmap-color-level-1', settings.colorLevel1);
-        container.style.setProperty('--heatmap-color-level-2', settings.colorLevel2);
-        container.style.setProperty('--heatmap-color-level-3', settings.colorLevel3);
-        container.style.setProperty('--heatmap-color-level-4', settings.colorLevel4);
-        container.style.setProperty('--heatmap-progress-fill', settings.progressColorFill || settings.colorLevel2);
-        container.style.setProperty('--heatmap-progress-half', settings.progressColorHalf || settings.colorLevel3);
-        container.style.setProperty('--heatmap-progress-complete', settings.progressColorComplete || settings.colorLevel4);
+        setCssProps(container, {
+            '--heatmap-cell-size': `${settings.cellSize}px`,
+            '--heatmap-cell-gap': `${settings.cellGap}px`,
+            '--heatmap-color-level-0': settings.colorEmpty,
+            '--heatmap-color-level-1': settings.colorLevel1,
+            '--heatmap-color-level-2': settings.colorLevel2,
+            '--heatmap-color-level-3': settings.colorLevel3,
+            '--heatmap-color-level-4': settings.colorLevel4,
+            '--heatmap-progress-fill': settings.progressColorFill || settings.colorLevel2,
+            '--heatmap-progress-half': settings.progressColorHalf || settings.colorLevel3,
+            '--heatmap-progress-complete': settings.progressColorComplete || settings.colorLevel4,
+        });
     }
 
     async onClose() {}
