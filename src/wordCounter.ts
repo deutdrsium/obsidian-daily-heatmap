@@ -23,6 +23,7 @@ export interface WordCountExport {
 
 export class WordCounter {
     private readonly plugin: WritingHeatmapPlugin;
+    private syncPromise: Promise<void> | null = null;
     data: WordCountData;
     initialized: boolean = false;
 
@@ -42,35 +43,87 @@ export class WordCounter {
             const legacyData = await this.plugin.loadData();
             if (legacyData && (legacyData.dailyCounts || legacyData.fileWordCounts)) {
                 this.data = this.normalizeData(legacyData);
-                await this.saveData();
             }
         }
 
-        await this.initializeFileCounts();
+        // 立即标记初始化完成，允许 updateWordCount 处理后续的变更
         this.initialized = true;
+
+        // 在 workspace ready 后再执行文件同步，避免阻塞插件加载
+        this.scheduleBackgroundSync();
     }
 
-    async initializeFileCounts() {
+    private scheduleBackgroundSync() {
+        // 等待 workspace ready 后在后台执行同步
+        this.waitForWorkspaceReady().then(() => {
+            this.scheduleSyncFileCounts();
+        }).catch(error => {
+            console.error('Heatmap: 后台同步调度失败', error);
+        });
+    }
+
+    private scheduleSyncFileCounts() {
+        if (this.syncPromise) {
+            console.debug('Heatmap: 文件列表同步已在进行中，跳过重复触发');
+            return;
+        }
+
+        this.syncPromise = (async () => {
+            const start = Date.now();
+            try {
+                await this.syncFileCounts();
+                console.debug(`Heatmap: 文件列表同步完成，耗时 ${Date.now() - start}ms`);
+            } catch (error) {
+                console.error('Heatmap: 文件列表同步失败', error);
+            } finally {
+                this.syncPromise = null;
+            }
+        })();
+    }
+
+    /**
+     * 同步文件列表：
+     * 1. 移除 data 中存在但实际文件已删除的条目
+     * 2. 为 data 中不存在的新文件计算词数
+     * 3. 不会重新计算已存在条目的词数（避免启动时大量IO）
+     */
+    async syncFileCounts() {
         const files = this.plugin.app.vault.getMarkdownFiles();
+        const currentFilePaths = new Set(files.map(f => f.path));
+        const storedPaths = Object.keys(this.data.fileWordCounts);
         
-        for (const file of files) {
-            const content = await this.plugin.app.vault.cachedRead(file);
-            const wordCount = this.countWords(content);
-            
-            if (!(file.path in this.data.fileWordCounts)) {
-                this.data.fileWordCounts[file.path] = wordCount;
-            }
-        }
-        
-        const existingPaths = new Set(files.map((f: TFile) => f.path));
-        for (const path in this.data.fileWordCounts) {
-            if (!existingPaths.has(path)) {
+        let hasChanges = false;
+
+        // 1. 清理已删除的文件
+        for (const path of storedPaths) {
+            if (!currentFilePaths.has(path)) {
                 delete this.data.fileWordCounts[path];
+                hasChanges = true;
+                console.debug(`Heatmap: 移除已删除文件记录: ${path}`);
             }
         }
-        
-        await this.saveData();
-        console.debug('Heatmap: 初始化完成，已记录', files.length, '个文件');
+
+        // 2. 补充缺失的文件 (新文件或上次未保存的文件)
+        for (const file of files) {
+            if (this.data.fileWordCounts[file.path] === undefined) {
+                try {
+                    const content = await this.plugin.app.vault.cachedRead(file);
+                    const count = this.countWords(content);
+                    this.data.fileWordCounts[file.path] = count;
+                    hasChanges = true;
+                    console.debug(`Heatmap: 同步新文件: ${file.path}, 词数: ${count}`);
+                } catch (error) {
+                    console.error(`Heatmap: 读取文件失败 ${file.path}`, error);
+                }
+            }
+        }
+
+        if (hasChanges) {
+            await this.saveData();
+            console.debug('Heatmap: 文件列表同步完成并保存');
+        } else {
+            console.debug('Heatmap: 文件列表已是最新，无需更新');
+        }
     }
 
     async saveData() {
@@ -78,8 +131,7 @@ export class WordCounter {
     }
 
     getTodayString(): string {
-        const today = new Date();
-        return today.toISOString().split('T')[0];
+        return this.formatLocalDate(new Date());
     }
 
     countWords(text: string): number {
@@ -101,6 +153,7 @@ export class WordCounter {
 
     async updateWordCount(file: TFile) {
         if (!this.initialized) {
+            console.debug('Heatmap: 插件未初始化完成，跳过更新');
             return;
         }
 
@@ -113,23 +166,23 @@ export class WordCounter {
         const lastCount = this.data.fileWordCounts[file.path];
         
         if (lastCount === undefined) {
+            // 新文件：记录初始词数，不计入今日统计
             this.data.fileWordCounts[file.path] = currentCount;
-            if (currentCount > 0) {
-                this.data.dailyCounts[today] = (this.data.dailyCounts[today] || 0) + currentCount;
-            }
+            console.debug(`Heatmap: 新文件 ${file.basename} | 初始词数: ${currentCount} (不计入今日)`);
         } else {
             const diff = currentCount - lastCount;
             
             if (diff > 0) {
                 this.data.dailyCounts[today] = (this.data.dailyCounts[today] || 0) + diff;
+                console.debug(`Heatmap: ${file.basename} | 之前: ${lastCount} | 现在: ${currentCount} | 新增: ${diff} | 今日总计: ${this.data.dailyCounts[today]}`);
+            } else if (diff < 0) {
+                console.debug(`Heatmap: ${file.basename} | 词数减少: ${diff} (不影响今日统计)`);
             }
             this.data.fileWordCounts[file.path] = currentCount;
         }
 
         await this.saveData();
         this.notifyUpdate();
-        
-        console.debug(`Heatmap: ${file.basename} | 之前: ${lastCount ?? '新文件'} | 现在: ${currentCount} | 今日总计: ${this.data.dailyCounts[today] || 0}`);
     }
 
     notifyUpdate() {
@@ -143,7 +196,7 @@ export class WordCounter {
         for (let i = 0; i < days; i++) {
             const date = new Date(today);
             date.setDate(date.getDate() - i);
-            const dateStr = date.toISOString().split('T')[0];
+            const dateStr = this.formatLocalDate(date);
             result[dateStr] = this.data.dailyCounts[dateStr] || 0;
         }
 
@@ -181,10 +234,33 @@ export class WordCounter {
     }
 
     private normalizeData(source: Partial<WordCountData> | null | undefined): WordCountData {
+        const fileWordCounts = source?.fileWordCounts || {};
         return {
             dailyCounts: source?.dailyCounts || {},
-            fileWordCounts: source?.fileWordCounts || {}
+            fileWordCounts
         };
+    }
+
+    private formatLocalDate(date: Date): string {
+        const year = date.getFullYear();
+        const month = this.padToTwoDigits(date.getMonth() + 1);
+        const day = this.padToTwoDigits(date.getDate());
+        return `${year}-${month}-${day}`;
+    }
+
+    private padToTwoDigits(value: number): string {
+        return value < 10 ? `0${value}` : `${value}`;
+    }
+
+    private async waitForWorkspaceReady(): Promise<void> {
+        const { workspace } = this.plugin.app;
+        if (workspace.layoutReady) {
+            return;
+        }
+
+        await new Promise<void>((resolve) => {
+            workspace.onLayoutReady(() => resolve());
+        });
     }
 
     private async readExternalData(): Promise<WordCountData | null> {

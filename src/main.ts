@@ -61,10 +61,8 @@ export default class WritingHeatmapPlugin extends Plugin {
     }
 
     async saveSettings() {
-        await this.saveData({
-            ...this.settings,
-            ...this.wordCounter.data  // 同时保存统计数据
-        });
+        // 只保存设置，不保存 wordCounter 数据（wordCounter 有自己的保存机制）
+        await this.saveData(this.settings);
         this.refreshView();
     }
 
