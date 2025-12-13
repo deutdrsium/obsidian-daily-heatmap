@@ -10,6 +10,7 @@ export interface WritingHeatmapSettings {
     colorLevel2: string;     // 等级2颜色
     colorLevel3: string;     // 等级3颜色
     colorLevel4: string;     // 等级4颜色（最大）
+    colorLevel5: string;     // 等级5颜色（冲刺目标）
     
     // 阈值设置
     level1Threshold: number;  // 等级1阈值
@@ -24,6 +25,12 @@ export interface WritingHeatmapSettings {
     progressColorHalf: string;      // 超过50%时颜色
     progressColorComplete: string;  // 完成目标时颜色
     
+    // 冲刺目标
+    sprintGoal: number;       // 冲刺目标字数
+    sprintColorFill: string;  // 冲刺进度条基础颜色
+    sprintColorHalf: string;  // 冲刺超过50%时颜色
+    sprintColorComplete: string; // 冲刺完成时颜色
+    
     // 显示设置
     cellSize: number;         // 格子大小 (px)
     cellGap: number;          // 格子间距 (px)
@@ -36,6 +43,7 @@ export const DEFAULT_SETTINGS: WritingHeatmapSettings = {
     colorLevel2: '#40c463',
     colorLevel3: '#30a14e',
     colorLevel4: '#216e39',
+    colorLevel5: '#ffd700',
     
     level1Threshold: 100,
     level2Threshold: 300,
@@ -48,6 +56,11 @@ export const DEFAULT_SETTINGS: WritingHeatmapSettings = {
     progressColorHalf: '#30a14e',
     progressColorComplete: '#216e39',
     
+    sprintGoal: 2000,
+    sprintColorFill: '#a371f7',
+    sprintColorHalf: '#8957e5',
+    sprintColorComplete: '#6e3dd1',
+    
     cellSize: 12,
     cellGap: 2
 };
@@ -58,7 +71,8 @@ export const DARK_MODE_COLORS = {
     colorLevel1: '#0e4429',
     colorLevel2: '#006d32',
     colorLevel3: '#26a641',
-    colorLevel4: '#39d353'
+    colorLevel4: '#39d353',
+    colorLevel5: '#ffb700'
 };
 
 // 颜色预设方案
@@ -69,14 +83,16 @@ const COLOR_PRESETS = {
             colorLevel1: '#9be9a8',
             colorLevel2: '#40c463',
             colorLevel3: '#30a14e',
-            colorLevel4: '#216e39'
+            colorLevel4: '#216e39',
+            colorLevel5: '#ffd700'
         },
         dark: {
             colorEmpty: '#161b22',
             colorLevel1: '#0e4429',
             colorLevel2: '#006d32',
             colorLevel3: '#26a641',
-            colorLevel4: '#39d353'
+            colorLevel4: '#39d353',
+            colorLevel5: '#ffb700'
         }
     },
     blue: {
@@ -85,14 +101,16 @@ const COLOR_PRESETS = {
             colorLevel1: '#c6e6ff',
             colorLevel2: '#79c0ff',
             colorLevel3: '#388bfd',
-            colorLevel4: '#1f6feb'
+            colorLevel4: '#1f6feb',
+            colorLevel5: '#ffd700'
         },
         dark: {
             colorEmpty: '#161b22',
             colorLevel1: '#1f3a5f',
             colorLevel2: '#1f6feb',
             colorLevel3: '#388bfd',
-            colorLevel4: '#79c0ff'
+            colorLevel4: '#79c0ff',
+            colorLevel5: '#ffb700'
         }
     },
     purple: {
@@ -101,14 +119,16 @@ const COLOR_PRESETS = {
             colorLevel1: '#e2c6ff',
             colorLevel2: '#bc8cff',
             colorLevel3: '#a371f7',
-            colorLevel4: '#8957e5'
+            colorLevel4: '#8957e5',
+            colorLevel5: '#ffd700'
         },
         dark: {
             colorEmpty: '#161b22',
             colorLevel1: '#3d2b5f',
             colorLevel2: '#8957e5',
             colorLevel3: '#a371f7',
-            colorLevel4: '#bc8cff'
+            colorLevel4: '#bc8cff',
+            colorLevel5: '#ffb700'
         }
     },
     orange: {
@@ -117,14 +137,16 @@ const COLOR_PRESETS = {
             colorLevel1: '#ffe5cc',
             colorLevel2: '#ffb366',
             colorLevel3: '#ff8c00',
-            colorLevel4: '#e06600'
+            colorLevel4: '#e06600',
+            colorLevel5: '#ffd700'
         },
         dark: {
             colorEmpty: '#161b22',
             colorLevel1: '#5f3d1f',
             colorLevel2: '#e06600',
             colorLevel3: '#ff8c00',
-            colorLevel4: '#ffb366'
+            colorLevel4: '#ffb366',
+            colorLevel5: '#ffb700'
         }
     }
 };
@@ -152,6 +174,7 @@ export class WritingHeatmapSettingTab extends PluginSettingTab {
         this.plugin.settings.colorLevel2 = preset.colorLevel2;
         this.plugin.settings.colorLevel3 = preset.colorLevel3;
         this.plugin.settings.colorLevel4 = preset.colorLevel4;
+        this.plugin.settings.colorLevel5 = preset.colorLevel5;
         this.plugin.settings.progressColorFill = preset.colorLevel2;
         this.plugin.settings.progressColorHalf = preset.colorLevel3;
         this.plugin.settings.progressColorComplete = preset.colorLevel4;
@@ -225,6 +248,55 @@ export class WritingHeatmapSettingTab extends PluginSettingTab {
                 .setValue(this.plugin.settings.progressColorComplete)
                 .onChange(async (value) => {
                     this.plugin.settings.progressColorComplete = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        // ===== 冲刺目标设置 =====
+        new Setting(containerEl)
+            .setName('🚀 冲刺目标')
+            .setHeading();
+
+        new Setting(containerEl)
+            .setName('冲刺目标字数')
+            .setDesc('完成每日目标后，可开启的冲刺挑战目标')
+            .addText(text => text
+                .setPlaceholder('2000')
+                .setValue(this.plugin.settings.sprintGoal.toString())
+                .onChange(async (value) => {
+                    const num = parseInt(value);
+                    if (!isNaN(num) && num > 0) {
+                        this.plugin.settings.sprintGoal = num;
+                        await this.plugin.saveSettings();
+                    }
+                }));
+
+        new Setting(containerEl)
+            .setName('冲刺进度条颜色（开始）')
+            .setDesc('冲刺模式下低于 50% 进度时的颜色')
+            .addColorPicker(color => color
+                .setValue(this.plugin.settings.sprintColorFill)
+                .onChange(async (value) => {
+                    this.plugin.settings.sprintColorFill = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('冲刺进度条颜色（过半）')
+            .setDesc('冲刺模式下达到 50% 进度后的颜色')
+            .addColorPicker(color => color
+                .setValue(this.plugin.settings.sprintColorHalf)
+                .onChange(async (value) => {
+                    this.plugin.settings.sprintColorHalf = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('冲刺进度条颜色（完成）')
+            .setDesc('冲刺模式下完成目标后的颜色')
+            .addColorPicker(color => color
+                .setValue(this.plugin.settings.sprintColorComplete)
+                .onChange(async (value) => {
+                    this.plugin.settings.sprintColorComplete = value;
                     await this.plugin.saveSettings();
                 }));
 
@@ -339,6 +411,16 @@ export class WritingHeatmapSettingTab extends PluginSettingTab {
                 .setValue(this.plugin.settings.colorLevel4)
                 .onChange(async (value) => {
                     this.plugin.settings.colorLevel4 = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('等级5颜色（冲刺目标）')
+            .setDesc('达到冲刺目标时的特殊颜色')
+            .addColorPicker(color => color
+                .setValue(this.plugin.settings.colorLevel5)
+                .onChange(async (value) => {
+                    this.plugin.settings.colorLevel5 = value;
                     await this.plugin.saveSettings();
                 }));
 

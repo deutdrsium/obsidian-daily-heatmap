@@ -227,6 +227,7 @@ export class WordCounter {
     getLevel(count: number): number {
         const settings = this.plugin.settings;
         if (count === 0) return 0;
+        if (count >= settings.sprintGoal) return 5;  // 达到冲刺目标
         if (count < settings.level1Threshold) return 1;
         if (count < settings.level2Threshold) return 2;
         if (count < settings.level3Threshold) return 3;

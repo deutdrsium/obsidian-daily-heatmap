@@ -7,6 +7,7 @@ import { WritingHeatmapSettings, DEFAULT_SETTINGS, WritingHeatmapSettingTab } fr
 export default class WritingHeatmapPlugin extends Plugin {
     wordCounter: WordCounter;
     settings: WritingHeatmapSettings;
+    sprintModeDate: string | null = null; // 记录开启冲刺模式的日期
 
     async onload() {
         console.debug('加载 Writing Heatmap 插件');
@@ -63,6 +64,18 @@ export default class WritingHeatmapPlugin extends Plugin {
     async saveSettings() {
         // 只保存设置，不保存 wordCounter 数据（wordCounter 有自己的保存机制）
         await this.saveData(this.settings);
+        this.refreshView();
+    }
+
+    // 检查今天是否开启了冲刺模式
+    isSprintModeActive(): boolean {
+        const today = new Date().toISOString().split('T')[0];
+        return this.sprintModeDate === today;
+    }
+
+    // 开启冲刺模式
+    activateSprintMode() {
+        this.sprintModeDate = new Date().toISOString().split('T')[0];
         this.refreshView();
     }
 

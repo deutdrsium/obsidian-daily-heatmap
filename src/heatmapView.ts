@@ -82,23 +82,60 @@ export class HeatmapView extends ItemView {
 
         // ===== 进度条 =====
         if (settings.showProgressBar) {
+            const isSprintMode = this.plugin.isSprintModeActive();
+            const currentGoal = isSprintMode ? settings.sprintGoal : safeDailyGoal;
+            const currentGoalPercent = Math.min(100, Math.round((todayCount / currentGoal) * 100));
+            const currentRemainingWords = Math.max(0, currentGoal - todayCount);
+            
             const progressContainer = container.createEl('div', { cls: 'progress-container' });
             
+            // 进度条
             const progressBar = progressContainer.createEl('div', { cls: 'dh-progress-bar' });
             const progressFill = progressBar.createEl('div', { cls: 'progress-fill' });
-            setCssProps(progressFill, { width: `${goalPercent}%` });
             
-            if (goalPercent >= 100) {
+            if (isSprintMode) {
+                progressFill.addClass('sprint-mode');
+            }
+            
+            setCssProps(progressFill, { width: `${currentGoalPercent}%` });
+            
+            if (currentGoalPercent >= 100) {
                 progressFill.addClass('complete');
-            } else if (goalPercent >= 50) {
+            } else if (currentGoalPercent >= 50) {
                 progressFill.addClass('half');
             }
             
+            // 进度文字
             const progressText = progressContainer.createEl('div', { cls: 'progress-text' });
-            if (goalPercent >= 100) {
-                progressText.setText(`🎉 已完成 ${goalPercent}%！`);
+            if (isSprintMode) {
+                // 冲刺模式的文字
+                if (currentGoalPercent >= 100) {
+                    progressText.setText(`🎉 冲刺完成 ${currentGoalPercent}%！`);
+                } else {
+                    progressText.setText(`🚀 冲刺中 ${currentGoalPercent}% - 还差 ${currentRemainingWords} 字`);
+                }
             } else {
-                progressText.setText(`${goalPercent}% - 还差 ${remainingWords} 字`);
+                // 常规模式的文字
+                if (goalPercent >= 100) {
+                    progressText.setText(`🎉 已完成 ${goalPercent}%！`);
+                } else {
+                    progressText.setText(`${goalPercent}% - 还差 ${remainingWords} 字`);
+                }
+            }
+            
+            // 如果完成了常规目标但未开启冲刺模式，显示"开启冲刺"按钮
+            if (goalPercent >= 100 && !isSprintMode) {
+                const sprintButtonContainer = progressContainer.createEl('div', { 
+                    cls: 'sprint-button-container' 
+                });
+                const sprintButton = sprintButtonContainer.createEl('button', {
+                    text: '🚀 开启冲刺目标',
+                    cls: 'sprint-activate-button'
+                });
+                
+                sprintButton.addEventListener('click', () => {
+                    this.plugin.activateSprintMode();
+                });
             }
         }
 
@@ -190,7 +227,7 @@ export class HeatmapView extends ItemView {
         // ===== 图例 =====
         const legendEl = container.createEl('div', { cls: 'heatmap-legend' });
         legendEl.createEl('span', { text: '少' });
-        for (let i = 0; i <= 4; i++) {
+        for (let i = 0; i <= 5; i++) {
             legendEl.createEl('div', { cls: `legend-item level-${i}` });
         }
         legendEl.createEl('span', { text: '多' });
@@ -316,6 +353,8 @@ export class HeatmapView extends ItemView {
 
     private applyDynamicStyles(container: HTMLElement) {
         const settings = this.plugin.settings;
+        const isSprintMode = this.plugin.isSprintModeActive();
+        
         setCssProps(container, {
             '--heatmap-cell-size': `${settings.cellSize}px`,
             '--heatmap-cell-gap': `${settings.cellGap}px`,
@@ -324,9 +363,10 @@ export class HeatmapView extends ItemView {
             '--heatmap-color-level-2': settings.colorLevel2,
             '--heatmap-color-level-3': settings.colorLevel3,
             '--heatmap-color-level-4': settings.colorLevel4,
-            '--heatmap-progress-fill': settings.progressColorFill || settings.colorLevel2,
-            '--heatmap-progress-half': settings.progressColorHalf || settings.colorLevel3,
-            '--heatmap-progress-complete': settings.progressColorComplete || settings.colorLevel4,
+            '--heatmap-color-level-5': settings.colorLevel5,
+            '--heatmap-progress-fill': isSprintMode ? settings.sprintColorFill : settings.progressColorFill,
+            '--heatmap-progress-half': isSprintMode ? settings.sprintColorHalf : settings.progressColorHalf,
+            '--heatmap-progress-complete': isSprintMode ? settings.sprintColorComplete : settings.progressColorComplete,
         });
     }
 

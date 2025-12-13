@@ -8,6 +8,7 @@
 	--heatmap-color-level-2: #40c463;
 	--heatmap-color-level-3: #30a14e;
 	--heatmap-color-level-4: #216e39;
+	--heatmap-color-level-5: #ffd700;
 	--heatmap-progress-fill: #40c463;
 	--heatmap-progress-half: #30a14e;
 	--heatmap-progress-complete: #216e39;
@@ -65,9 +66,51 @@
 	background-color: var(--heatmap-progress-complete);
 }
 
+.progress-fill.sprint-mode {
+	animation: sprint-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes sprint-pulse {
+	0%, 100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.8;
+	}
+}
+
 .progress-text {
 	font-size: 11px;
 	color: var(--text-muted);
+}
+
+/* 冲刺按钮 */
+.sprint-button-container {
+	margin-top: 8px;
+	text-align: center;
+}
+
+.sprint-activate-button {
+	padding: 6px 12px;
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--text-on-accent);
+	background: linear-gradient(135deg, var(--interactive-accent), var(--text-accent));
+	border: none;
+	border-radius: 6px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.sprint-activate-button:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.sprint-activate-button:active {
+	transform: translateY(0);
+	box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
 /* 热力图纵向布局 */
@@ -174,6 +217,21 @@
 	background-color: var(--heatmap-color-level-4);
 }
 
+.heatmap-day.level-5 {
+	background-color: var(--heatmap-color-level-5);
+	box-shadow: 0 0 6px var(--heatmap-color-level-5);
+	animation: glow-pulse 2s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+	0%, 100% {
+		box-shadow: 0 0 6px var(--heatmap-color-level-5);
+	}
+	50% {
+		box-shadow: 0 0 12px var(--heatmap-color-level-5);
+	}
+}
+
 /* 图例 */
 .heatmap-legend {
 	display: flex;
@@ -208,6 +266,10 @@
 
 .legend-item.level-4 {
 	background-color: var(--heatmap-color-level-4);
+}
+
+.legend-item.level-5 {
+	background-color: var(--heatmap-color-level-5);
 }
 
 /* 年度统计 */
